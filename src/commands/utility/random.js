@@ -92,6 +92,11 @@ module.exports = {
         )
     ),
   async execute(interaction) {
+    console.log(
+      `[Random] Executing command: ${interaction.commandName} ${
+        interaction.options.getSubcommandGroup() || ""
+      } ${interaction.options.getSubcommand()}`
+    );
     const subcommand = interaction.options.getSubcommand();
     const group = interaction.options.getSubcommandGroup();
 
@@ -152,6 +157,14 @@ module.exports = {
 
       if (subcommand === "create") {
         const itemsString = interaction.options.getString("items");
+
+        if (!itemsString) {
+          return interaction.reply({
+            content: "❌ Error: Items are required to create a list.",
+            ephemeral: true,
+          });
+        }
+
         const items = itemsString
           .split(",")
           .map((item) => item.trim())
