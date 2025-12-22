@@ -36,13 +36,29 @@ module.exports = {
     if (lists[name]) return false; // Already exists
 
     lists[name] = {
-      items,
+      items: [...items],
+      originalItems: [...items],
       createdBy,
       createdAt: new Date().toISOString(),
       originalCount: items.length,
     };
     saveLists(lists);
     return true;
+  },
+
+  resetList: (name) => {
+    const lists = loadLists();
+    const list = lists[name];
+    if (!list) return false;
+
+    // If originalItems exists, restore it. If not (legacy data), we can't fully reset unless we stored it.
+    // For new lists, originalItems will be there.
+    if (list.originalItems) {
+      list.items = [...list.originalItems];
+      saveLists(lists);
+      return true;
+    }
+    return false;
   },
 
   getList: (name) => {
@@ -77,5 +93,21 @@ module.exports = {
 
   getAllLists: () => {
     return loadLists();
+  },
+
+  ensureDefaultList: (name, items, createdBy) => {
+    const lists = loadLists();
+    if (!lists[name]) {
+      lists[name] = {
+        items: [...items],
+        originalItems: [...items],
+        createdBy,
+        createdAt: new Date().toISOString(),
+        originalCount: items.length,
+      };
+      saveLists(lists);
+      return true; // Created
+    }
+    return false; // Existed
   },
 };

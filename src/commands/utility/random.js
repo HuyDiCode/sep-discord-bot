@@ -5,7 +5,12 @@ const {
   pickFromList,
   deleteList,
   getAllLists,
+  resetList,
+  ensureDefaultList,
 } = require("../../utils/randomManager");
+
+const TEAM_MEMBERS = ["Huy", "Nguyên", "Trí", "Đào", "Hoàng"];
+const TEAM_LIST_NAME = "team_members";
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -14,38 +19,28 @@ module.exports = {
     .addSubcommand((subcommand) =>
       subcommand.setName("coin").setDescription("Flip a coin (Heads or Tails)")
     )
-    .addSubcommand((subcommand) =>
-      subcommand
-        .setName("number")
-        .setDescription("Get a random number between min and max")
-        .addIntegerOption((option) =>
-          option
-            .setName("min")
-            .setDescription("Minimum number")
-            .setRequired(true)
+    .addSubcommandGroup((group) =>
+      group
+        .setName("member")
+        .setDescription(
+          "Pick from the team list (Huy, Nguyên, Trí, Đào, Hoàng)"
         )
-        .addIntegerOption((option) =>
-          option
-            .setName("max")
-            .setDescription("Maximum number")
-            .setRequired(true)
+        .addSubcommand((sub) =>
+          sub
+            .setName("pick")
+            .setDescription("Pick a member and remove from list")
         )
-    )
-    .addSubcommand((subcommand) =>
-      subcommand
-        .setName("pick")
-        .setDescription("Pick a random item from a list (stateless)")
-        .addStringOption((option) =>
-          option
-            .setName("items")
-            .setDescription("Items separated by commas")
-            .setRequired(true)
+        .addSubcommand((sub) =>
+          sub.setName("reset").setDescription("Reset the team list to full")
+        )
+        .addSubcommand((sub) =>
+          sub.setName("view").setDescription("View remaining members")
         )
     )
     .addSubcommandGroup((group) =>
       group
         .setName("list")
-        .setDescription("Manage persistent lists (pick and remove)")
+        .setDescription("Manage custom lists")
         .addSubcommand((sub) =>
           sub
             .setName("create")
@@ -64,6 +59,14 @@ module.exports = {
           sub
             .setName("pick")
             .setDescription("Pick and remove an item from a list")
+            .addStringOption((opt) =>
+              opt.setName("name").setDescription("List name").setRequired(true)
+            )
+        )
+        .addSubcommand((sub) =>
+          sub
+            .setName("reset")
+            .setDescription("Reset a list to original items")
             .addStringOption((opt) =>
               opt.setName("name").setDescription("List name").setRequired(true)
             )
@@ -92,6 +95,58 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
     const group = interaction.options.getSubcommandGroup();
 
+    // --- COIN ---
+    if (subcommand === "coin") {
+      const result = Math.random() < 0.5 ? "Heads 🪙" : "Tails 🪙";
+      const embed = new EmbedBuilder()
+        .setColor(0xffd700)
+        .setTitle("Coin Flip")
+        .setDescription(`The result is: **${result}**`);
+      return interaction.reply({ embeds: [embed] });
+    }
+
+    // --- MEMBER (Predefined List) ---
+    if (group === "member") {
+      // Ensure list exists
+      ensureDefaultList(TEAM_LIST_NAME, TEAM_MEMBERS, "SYSTEM");
+
+      if (subcommand === "pick") {
+        const result = pickFromList(TEAM_LIST_NAME);
+
+        if (result.error === "empty") {
+          return interaction.reply({
+            content: `⚠️ Team list is empty! Use \`/random member reset\` to start over.`,
+            ephemeral: true,
+          });
+        }
+
+        const embed = new EmbedBuilder()
+          .setColor(0xe74c3c)
+          .setTitle(`🎲 Picked Member`)
+          .setDescription(`Result: **${result.item}**`)
+          .setFooter({ text: `${result.remaining} members remaining` });
+
+        return interaction.reply({ embeds: [embed] });
+      } else if (subcommand === "reset") {
+        resetList(TEAM_LIST_NAME);
+        return interaction.reply({
+          content: `✅ Team list has been reset to: ${TEAM_MEMBERS.join(", ")}`,
+        });
+      } else if (subcommand === "view") {
+        const list = getList(TEAM_LIST_NAME);
+        const itemsStr =
+          list.items.length > 0 ? list.items.join("\n• ") : "(Empty)";
+        const embed = new EmbedBuilder()
+          .setColor(0x2ecc71)
+          .setTitle(`📜 Team Members`)
+          .setDescription(
+            `**Remaining (${list.items.length}):**\n• ${itemsStr}`
+          );
+        return interaction.reply({ embeds: [embed] });
+      }
+    }
+
+    // --- LIST (Custom Lists) ---
     if (group === "list") {
       const name = interaction.options.getString("name");
 
@@ -132,7 +187,7 @@ module.exports = {
         }
         if (result.error === "empty") {
           return interaction.reply({
-            content: `⚠️ List **${name}** is empty!`,
+            content: `⚠️ List **${name}** is empty! Use \`/random list reset name:${name}\` to restart.`,
             ephemeral: true,
           });
         }
@@ -144,6 +199,18 @@ module.exports = {
           .setFooter({ text: `${result.remaining} items remaining` });
 
         return interaction.reply({ embeds: [embed] });
+      } else if (subcommand === "reset") {
+        const success = resetList(name);
+        if (success) {
+          return interaction.reply({
+            content: `✅ List **${name}** has been reset.`,
+          });
+        } else {
+          return interaction.reply({
+            content: `❌ List **${name}** not found or cannot be reset.`,
+            ephemeral: true,
+          });
+        }
       } else if (subcommand === "view") {
         if (name) {
           const list = getList(name);
@@ -199,56 +266,6 @@ module.exports = {
           });
         }
       }
-      return;
-    }
-
-    if (subcommand === "coin") {
-      const result = Math.random() < 0.5 ? "Heads 🪙" : "Tails 🪙";
-      const embed = new EmbedBuilder()
-        .setColor(0xffd700)
-        .setTitle("Coin Flip")
-        .setDescription(`The result is: **${result}**`);
-      await interaction.reply({ embeds: [embed] });
-    } else if (subcommand === "number") {
-      const min = interaction.options.getInteger("min");
-      const max = interaction.options.getInteger("max");
-
-      if (min > max) {
-        return interaction.reply({
-          content: "Min cannot be greater than Max!",
-          ephemeral: true,
-        });
-      }
-
-      const result = Math.floor(Math.random() * (max - min + 1)) + min;
-      const embed = new EmbedBuilder()
-        .setColor(0x3498db)
-        .setTitle("Random Number")
-        .setDescription(
-          `Random number between ${min} and ${max}: **${result}**`
-        );
-      await interaction.reply({ embeds: [embed] });
-    } else if (subcommand === "pick") {
-      const itemsString = interaction.options.getString("items");
-      const items = itemsString
-        .split(",")
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0);
-
-      if (items.length === 0) {
-        return interaction.reply({
-          content: "Please provide a valid list of items!",
-          ephemeral: true,
-        });
-      }
-
-      const picked = items[Math.floor(Math.random() * items.length)];
-      const embed = new EmbedBuilder()
-        .setColor(0x9b59b6)
-        .setTitle("Random Pick")
-        .setDescription(`I picked: **${picked}**`)
-        .setFooter({ text: `From: ${items.join(", ")}` });
-      await interaction.reply({ embeds: [embed] });
     }
   },
 };
