@@ -1,0 +1,27 @@
+{
+  "daily": {
+    "enabled": true,
+    "time": "20:00",
+    "channelId": "1452303726206386288",
+    "lastSent": "",
+    "lastReminded15": ""
+  },
+  "upcoming": [
+    {
+      "id": "1766335075758",
+      "title": "hehe",
+      "timestamp": 1766335920000,
+      "channelId": "1452328859474333929",
+      "createdBy": "650208747141988365",
+      "reminded15": true
+    },
+    {
+      "id": "1766335086080",
+      "title": "hehe",
+      "timestamp": 1766336040000,
+      "channelId": "1452328859474333929",
+      "createdBy": "650208747141988365",
+      "reminded15": true
+    }
+  ]
+}

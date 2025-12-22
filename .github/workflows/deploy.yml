@@ -1,0 +1,50 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            # Dừng script nếu có lỗi
+            set -e
+
+            # Thư mục project trên server (bạn có thể đổi tên folder này)
+            PROJECT_DIR=~/sep-discord-bot
+
+            # Kiểm tra xem thư mục đã tồn tại chưa, nếu chưa thì clone
+            if [ ! -d "$PROJECT_DIR" ]; then
+              echo "Cloning repository..."
+              git clone https://github.com/${{ github.repository }}.git $PROJECT_DIR
+            fi
+
+            # Di chuyển vào thư mục project
+            cd $PROJECT_DIR
+
+            # Pull code mới nhất
+            echo "Pulling latest changes..."
+            git fetch --all
+            git reset --hard origin/main
+
+            # Cài đặt dependencies
+            echo "Installing dependencies..."
+            npm ci --production
+
+            # Restart ứng dụng bằng PM2
+            echo "Restarting application..."
+            pm2 startOrReload ecosystem.config.js
+
+            echo "Deployment successful!"
