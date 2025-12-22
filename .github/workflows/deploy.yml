@@ -23,7 +23,7 @@ jobs:
             set -e
 
             # Thư mục project trên server (bạn có thể đổi tên folder này)
-            PROJECT_DIR=~/sep-discord-bot
+            PROJECT_DIR=~/dev/sep-discord-bot
 
             # Kiểm tra xem thư mục đã tồn tại chưa, nếu chưa thì clone
             if [ ! -d "$PROJECT_DIR" ]; then
