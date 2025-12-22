@@ -18,7 +18,7 @@ module.exports = {
       "Jira 🔷": ["mytasks", "linkjira"],
       "GitHub 🐙": ["addrepo", "removerepo", "listrepos", "linkgithub"],
       "Meetings 📅": ["daily", "schedule", "meetings"],
-      "Utility 🛠️": ["help", "ping"],
+      "Utility 🛠️": ["help", "ping", "vote", "random"],
     };
 
     const processedCommands = new Set();

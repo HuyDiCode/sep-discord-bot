@@ -43,6 +43,10 @@ jobs:
             echo "Installing dependencies..."
             npm ci --production
 
+            # Cập nhật Slash Commands
+            echo "Deploying slash commands..."
+            node src/deploy-commands.js
+
             # Restart ứng dụng bằng PM2
             echo "Restarting application..."
             pm2 startOrReload ecosystem.config.js
