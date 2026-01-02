@@ -20,6 +20,11 @@ function loadMeetings() {
   const parsed = JSON.parse(data);
   // Ensure backward compatibility
   if (!parsed.daily.lastReminded15) parsed.daily.lastReminded15 = "";
+  if (!parsed.googleCalendar) {
+    parsed.googleCalendar = {
+      remindedEvents: [], // List of event IDs that have been reminded
+    };
+  }
   return parsed;
 }
 
@@ -96,14 +101,37 @@ function markMeetingReminded15(id) {
   }
 }
 
+function markGoogleEventReminded(eventId) {
+  const data = loadMeetings();
+  if (!data.googleCalendar) {
+    data.googleCalendar = { remindedEvents: [] };
+  }
+  if (!data.googleCalendar.remindedEvents.includes(eventId)) {
+    data.googleCalendar.remindedEvents.push(eventId);
+    // Keep array size manageable (e.g., last 100 events)
+    if (data.googleCalendar.remindedEvents.length > 100) {
+      data.googleCalendar.remindedEvents.shift();
+    }
+    saveMeetings(data);
+  }
+}
+
+function isGoogleEventReminded(eventId) {
+  const data = loadMeetings();
+  if (!data.googleCalendar || !data.googleCalendar.remindedEvents) return false;
+  return data.googleCalendar.remindedEvents.includes(eventId);
+}
+
 module.exports = {
   loadMeetings,
+  saveMeetings,
   setDailyMeeting,
   disableDailyMeeting,
   addMeeting,
   removeMeeting,
-  getMeetings,
   updateDailyLastSent,
   updateDailyLastReminded15,
   markMeetingReminded15,
+  markGoogleEventReminded,
+  isGoogleEventReminded,
 };

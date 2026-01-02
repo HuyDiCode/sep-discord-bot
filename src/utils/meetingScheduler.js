@@ -5,7 +5,10 @@ const {
   updateDailyLastSent,
   updateDailyLastReminded15,
   markMeetingReminded15,
+  isGoogleEventReminded,
+  markGoogleEventReminded,
 } = require("./meetingManager");
+const { getCalendarEvents } = require("./googleCalendarClient");
 
 function startMeetingScheduler(client) {
   // Check every minute
@@ -141,7 +144,62 @@ function startMeetingScheduler(client) {
       // Remove the meeting after notifying
       removeMeeting(meeting.id);
     }
-  }, 30000); // Run every 30 seconds
+
+    // 3. Handle Google Calendar Events
+    if (process.env.GOOGLE_CALENDAR_ID && meetings.daily.channelId) {
+      // Use the daily meeting channel for calendar notifications by default
+      // Or we could add a specific config for this
+      const events = await getCalendarEvents(process.env.GOOGLE_CALENDAR_ID);
+
+      for (const event of events) {
+        const start = event.start.dateTime || event.start.date;
+        if (!start) continue;
+
+        const startTime = new Date(start).getTime();
+        const timeDiff = startTime - now.getTime();
+
+        // Notify if within 15 minutes (and not passed)
+        if (timeDiff <= 15 * 60000 && timeDiff > 0) {
+          if (!isGoogleEventReminded(event.id)) {
+            try {
+              const channel = await client.channels.fetch(
+                meetings.daily.channelId
+              );
+              if (channel) {
+                const embed = new EmbedBuilder()
+                  .setColor(0x3498db) // Blue for Google Calendar
+                  .setTitle("📅 Google Calendar Reminder")
+                  .setDescription(
+                    `**${event.summary}** starts in **15 minutes**!`
+                  )
+                  .addFields(
+                    {
+                      name: "Time",
+                      value: new Date(start).toLocaleTimeString("vi-VN"),
+                      inline: true,
+                    },
+                    {
+                      name: "Link",
+                      value: event.htmlLink || "N/A",
+                      inline: true,
+                    }
+                  )
+                  .setTimestamp();
+
+                await channel.send({ content: "@everyone", embeds: [embed] });
+                markGoogleEventReminded(event.id);
+                console.log(
+                  `Sent Google Calendar reminder for ${event.summary}`
+                );
+              }
+            } catch (error) {
+              console.error("Failed to send Google Calendar reminder:", error);
+            }
+          }
+        }
+      }
+    }
+  }, 60000); // Check every minute
 
   console.log("📅 Meeting Scheduler started.");
 }
