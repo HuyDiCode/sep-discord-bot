@@ -60,7 +60,8 @@ async function pollGitHubEvents(client) {
 
             switch (event.type) {
               case "PushEvent":
-                const commitCount = event.payload.size;
+                const commitCount =
+                  event.payload.size || event.payload.commits?.length || 1;
                 const branch = event.payload.ref.replace("refs/heads/", "");
                 message = `🔨 **${event.actor.login}** pushed ${commitCount} commit(s) to \`${repo.name}:${branch}\``;
                 break;
